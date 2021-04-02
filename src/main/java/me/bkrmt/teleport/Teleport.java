@@ -299,7 +299,7 @@ public class Teleport {
                     configKey = "homes.";
                     fileName = ((Player) sender).getUniqueId().toString() + ".yml";
                 } else {
-                    fileName = warpName + ".yml";
+                    fileName = warpName.toLowerCase() + ".yml";
                     filePath = "shops";
                     tempWarpName = ".";
                     configKey = "shop";
