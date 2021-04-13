@@ -121,6 +121,7 @@ public class Teleport {
             BukkitTask teleport = new BukkitRunnable() {
                 @Override
                 public void run() {
+                    System.out.println(1);
                     if (isCanceled()) cancel();
 
                     else sendCountdown();
@@ -149,18 +150,22 @@ public class Teleport {
         new BukkitRunnable() {
             @Override
             public void run() {
+                    System.out.println(2);
                 pling(15, 1);
             }
         }.runTaskLater(bkPlugin, 5);
     }
 
     private void teleport() {
-        if (startingDuration != 0) new BukkitRunnable() {
-            @Override
-            public void run() {
-                checkTeleport();
-            }
-        }.runTaskLater(bkPlugin, 25);
+        if (startingDuration != 0) {
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    System.out.println(3);
+                    checkTeleport();
+                }
+            }.runTaskLater(bkPlugin, 25);
+        }
         else checkTeleport();
     }
 
@@ -216,7 +221,10 @@ public class Teleport {
                 TeleportCore.invulnerablePlayers.remove(sender.getName());
             }
 
-            bkPlugin.sendActionBar((Player) sender, bkPlugin.getLangFile().get("info.invulnerable-remaining").replace("{seconds}", String.valueOf(invTime)));
+            String actionMessage = bkPlugin.getLangFile().get("info.invulnerable-remaining");
+
+            bkPlugin.sendActionBar((Player) sender, actionMessage.replace("{seconds}", String.valueOf(invTime)));
+
             Object[] values = new Object[4];
             values[0] = invTime;
             values[1] = 0f;
@@ -234,10 +242,9 @@ public class Teleport {
 
                         int length = (int) values[0];
                         float count = (float) values[1];
-
                         if ((int) (length - count) > 0) {
                             if (sendActionBar) {
-                                bkPlugin.sendActionBar(player, bkPlugin.getLangFile().get("info.invulnerable-remaining").replace("{seconds}", String.valueOf((int) (length - count))));
+                                bkPlugin.sendActionBar(player, actionMessage.replace("{seconds}", String.valueOf((int) (length - count))));
                                 sendActionBar = false;
                             }
                             else sendActionBar = true;
