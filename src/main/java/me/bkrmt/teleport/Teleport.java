@@ -121,7 +121,6 @@ public class Teleport {
             BukkitTask teleport = new BukkitRunnable() {
                 @Override
                 public void run() {
-                    System.out.println(1);
                     if (isCanceled()) cancel();
 
                     else sendCountdown();
@@ -150,7 +149,6 @@ public class Teleport {
         new BukkitRunnable() {
             @Override
             public void run() {
-                    System.out.println(2);
                 pling(15, 1);
             }
         }.runTaskLater(bkPlugin, 5);
@@ -161,7 +159,6 @@ public class Teleport {
             new BukkitRunnable() {
                 @Override
                 public void run() {
-                    System.out.println(3);
                     checkTeleport();
                 }
             }.runTaskLater(bkPlugin, 25);
