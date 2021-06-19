@@ -70,9 +70,9 @@ public class Teleport {
                 if (bkPlugin.getConfig().getBoolean("cancel-on-move")) {
                     if ((int) event.getFrom().getX() != (int) event.getTo().getX() || (int) event.getFrom().getZ() != (int) event.getTo().getZ()) {
                         Player player = event.getPlayer();
-                        if (TeleportCore.playersInCooldown.get(player.getName()) != null) {
-                            TeleportCore.playersInCooldown.put(player.getName(), false);
-                            TeleportCore.cancelCause.put(player.getName(), CancelCause.Moved);
+                        if (TeleportCore.INSTANCE.getPlayersInCooldown().get(player.getName()) != null) {
+                            TeleportCore.INSTANCE.getPlayersInCooldown().put(player.getName(), false);
+                            TeleportCore.INSTANCE.getCancelCause().put(player.getName(), CancelCause.Moved);
                             HandlerList.unregisterAll(moveListener);
                         }
                     }
@@ -105,10 +105,10 @@ public class Teleport {
     }
 
     public void startTeleport() {
-        if (TeleportCore.playersInCooldown.get(sender.getName()) == null) {
-            TeleportCore.playersInCooldown.put(sender.getName(), true);
-            if (TeleportCore.playerTeleport.get(sender.getName()) != null) {
-                TeleportCore.playerTeleport.get(sender.getName()).cancel();
+        if (TeleportCore.INSTANCE.getPlayersInCooldown().get(sender.getName()) == null) {
+            TeleportCore.INSTANCE.getPlayersInCooldown().put(sender.getName(), true);
+            if (TeleportCore.INSTANCE.getPlayerTeleport().get(sender.getName()) != null) {
+                TeleportCore.INSTANCE.getPlayerTeleport().get(sender.getName()).cancel();
             }
             if (duration == 0) {
                 teleport();
@@ -131,7 +131,7 @@ public class Teleport {
                     }
                 }
             }.runTaskTimer(bkPlugin, 0, 20);
-            TeleportCore.playerTeleport.put(sender.getName(), teleport);
+            TeleportCore.INSTANCE.getPlayerTeleport().put(sender.getName(), teleport);
         } else {
             sender.sendMessage(bkPlugin.getLangFile().get("error.already-waiting"));
         }
@@ -169,8 +169,8 @@ public class Teleport {
     private void checkTeleport() {
         if (isCanceled()) return;
 
-        TeleportCore.playerTeleport.remove(sender.getName());
-        TeleportCore.playersInCooldown.remove(sender.getName());
+        TeleportCore.INSTANCE.getPlayerTeleport().remove(sender.getName());
+        TeleportCore.INSTANCE.getPlayersInCooldown().remove(sender.getName());
         try {
             Player player = (Player) sender;
             PlayerBkTeleportEvent tpEvent = new PlayerBkTeleportEvent(player, getWarpingLocation());
@@ -187,24 +187,24 @@ public class Teleport {
     private boolean isCanceled() {
         if (!isCancelable) return false;
         if (startEvent.isCancelled()) {
-            TeleportCore.playerTeleport.remove(sender.getName());
-            TeleportCore.playersInCooldown.remove(sender.getName());
+            TeleportCore.INSTANCE.getPlayerTeleport().remove(sender.getName());
+            TeleportCore.INSTANCE.getPlayersInCooldown().remove(sender.getName());
             if (finishRunnable != null) Bukkit.getScheduler().scheduleSyncDelayedTask(bkPlugin, () -> finishRunnable.run((Player) sender, location, true), 3);
             return true;
-        }else if (!TeleportCore.playersInCooldown.get(sender.getName())) {
+        }else if (!TeleportCore.INSTANCE.getPlayersInCooldown().get(sender.getName())) {
             String subtitle = "";
-            if (TeleportCore.cancelCause.get(sender.getName()).equals(CancelCause.DealtDamage))
+            if (TeleportCore.INSTANCE.getCancelCause().get(sender.getName()).equals(CancelCause.DealtDamage))
                 subtitle = bkPlugin.getLangFile().get("error.warp-canceled-cause.took-damage");
-            else if (TeleportCore.cancelCause.get(sender.getName()).equals(CancelCause.TookDamage)) {
+            else if (TeleportCore.INSTANCE.getCancelCause().get(sender.getName()).equals(CancelCause.TookDamage)) {
                 subtitle = bkPlugin.getLangFile().get("error.warp-canceled-cause.dealt-damage");
-            } else if (TeleportCore.cancelCause.get(sender.getName()).equals(CancelCause.Moved)) {
+            } else if (TeleportCore.INSTANCE.getCancelCause().get(sender.getName()).equals(CancelCause.Moved)) {
                 subtitle = bkPlugin.getLangFile().get("error.warp-canceled-cause.moved");
             }
             bkPlugin.sendTitle((Player) sender, 5, 30, 5, bkPlugin.getLangFile().get("error.warp-canceled-title"), subtitle);
             pling(15, 0.5f);
-            TeleportCore.playerTeleport.remove(sender.getName());
-            TeleportCore.playersInCooldown.remove(sender.getName());
-            TeleportCore.cancelCause.remove(sender.getName());
+            TeleportCore.INSTANCE.getPlayerTeleport().remove(sender.getName());
+            TeleportCore.INSTANCE.getPlayersInCooldown().remove(sender.getName());
+            TeleportCore.INSTANCE.getCancelCause().remove(sender.getName());
             if (finishRunnable != null) Bukkit.getScheduler().scheduleSyncDelayedTask(bkPlugin, () -> finishRunnable.run((Player) sender, location, true), 3);
             return true;
         } else return false;
@@ -213,9 +213,9 @@ public class Teleport {
     private void movePlayer() {
         int invTime = bkPlugin.getConfig().getInt("invulnerable-time");
         if (!((Player)sender).getGameMode().equals(GameMode.CREATIVE) && invTime > 0) {
-            if (TeleportCore.invulnerablePlayers.get(sender.getName()) != null) {
-                ((BukkitTask)TeleportCore.invulnerablePlayers.get(sender.getName())[2]).cancel();
-                TeleportCore.invulnerablePlayers.remove(sender.getName());
+            if (TeleportCore.INSTANCE.getInvulnerablePlayers().get(sender.getName()) != null) {
+                ((BukkitTask) TeleportCore.INSTANCE.getInvulnerablePlayers().get(sender.getName())[2]).cancel();
+                TeleportCore.INSTANCE.getInvulnerablePlayers().remove(sender.getName());
             }
 
             String actionMessage = bkPlugin.getLangFile().get("info.invulnerable-remaining");
@@ -233,9 +233,9 @@ public class Teleport {
                     Player player = (Player) sender;
                     if (!player.isOnline()) {
                         cancel();
-                        TeleportCore.invulnerablePlayers.remove(sender.getName());
+                        TeleportCore.INSTANCE.getInvulnerablePlayers().remove(sender.getName());
                     } else {
-                        Object[] values = TeleportCore.invulnerablePlayers.get(sender.getName());
+                        Object[] values = TeleportCore.INSTANCE.getInvulnerablePlayers().get(sender.getName());
 
                         int length = (int) values[0];
                         float count = (float) values[1];
@@ -245,18 +245,18 @@ public class Teleport {
                                 sendActionBar = false;
                             }
                             else sendActionBar = true;
-                            TeleportCore.invulnerablePlayers.get(sender.getName())[1] = count + 0.5f;
+                            TeleportCore.INSTANCE.getInvulnerablePlayers().get(sender.getName())[1] = count + 0.5f;
                         } else {
                             bkPlugin.sendActionBar(player, "");
                             cancel();
-                            TeleportCore.invulnerablePlayers.remove(player.getName());
+                            TeleportCore.INSTANCE.getInvulnerablePlayers().remove(player.getName());
                         }
                     }
                 }
             }.runTaskTimer(bkPlugin, 10, 10);
             values[3] = new String[] {bkPlugin.getLangFile().get("error.cant-attack-now.self"), bkPlugin.getLangFile().get("error.cant-attack-now.others")};
 
-            TeleportCore.invulnerablePlayers.put(sender.getName(), values);
+            TeleportCore.INSTANCE.getInvulnerablePlayers().put(sender.getName(), values);
         }
 
         ((Player) sender).teleport(getWarpingLocation());

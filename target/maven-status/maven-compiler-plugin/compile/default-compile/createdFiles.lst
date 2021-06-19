@@ -1,9 +1,9 @@
 me\bkrmt\teleport\Teleport$1.class
 me\bkrmt\teleport\Teleport$3.class
+me\bkrmt\teleport\TeleportCore$1.class
 me\bkrmt\teleport\events\PlayerBkTeleportCountStartEvent.class
 me\bkrmt\teleport\Teleport$2.class
 me\bkrmt\teleport\TeleportRunnable.class
-me\bkrmt\teleport\DamageListener.class
 me\bkrmt\teleport\CancelCause.class
 me\bkrmt\teleport\Teleport.class
 me\bkrmt\teleport\TeleportCore.class
