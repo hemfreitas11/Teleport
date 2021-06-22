@@ -64,10 +64,10 @@ public class Teleport {
     }
 
     private void startMoveListener(BkPlugin bkPlugin) {
-        moveListener = bkPlugin.getConfig().getBoolean("cancel-on-move") ? new Listener() {
+        moveListener = bkPlugin.getConfigManager().getConfig().getBoolean("cancel-on-move") ? new Listener() {
             @EventHandler
             public void onMove(PlayerMoveEvent event) {
-                if (bkPlugin.getConfig().getBoolean("cancel-on-move")) {
+                if (bkPlugin.getConfigManager().getConfig().getBoolean("cancel-on-move")) {
                     if ((int) event.getFrom().getX() != (int) event.getTo().getX() || (int) event.getFrom().getZ() != (int) event.getTo().getZ()) {
                         Player player = event.getPlayer();
                         if (TeleportCore.INSTANCE.getPlayersInCooldown().get(player.getName()) != null) {
@@ -211,7 +211,7 @@ public class Teleport {
     }
 
     private void movePlayer() {
-        int invTime = bkPlugin.getConfig().getInt("invulnerable-time");
+        int invTime = bkPlugin.getConfigManager().getConfig().getInt("invulnerable-time");
         if (!((Player)sender).getGameMode().equals(GameMode.CREATIVE) && invTime > 0) {
             if (TeleportCore.INSTANCE.getInvulnerablePlayers().get(sender.getName()) != null) {
                 ((BukkitTask) TeleportCore.INSTANCE.getInvulnerablePlayers().get(sender.getName())[2]).cancel();
@@ -274,7 +274,7 @@ public class Teleport {
                 } else warpName = Utils.getPlayer(warpName).getName();
             }
             if (type.equals(TeleportType.Loja)) {
-                Configuration configFile = bkPlugin.getConfig("shops", warpName.toLowerCase() + ".yml");
+                Configuration configFile = bkPlugin.getConfigManager().getConfig("shops", warpName.toLowerCase() + ".yml");
                 String customColor = "7";
                 title = bkPlugin.getLangFile().get("info.warped.title").replace("{player}", warpName);
                 title.replaceAll("&", "");
@@ -321,7 +321,7 @@ public class Teleport {
             } else if (type.equals(TeleportType.TpaHere)) {
                 warpingLocation = ((Player) sender).getLocation();
             } else {
-                Configuration config = bkPlugin.getConfig(filePath, fileName);
+                Configuration config = bkPlugin.getConfigManager().getConfig(filePath, fileName);
                 World world = bkPlugin.getServer().getWorld(config.getString(configKey + tempWarpName + "world"));
                 double x = config.getDouble(configKey + tempWarpName + "x");
                 double y = config.getDouble(configKey + tempWarpName + "y");
