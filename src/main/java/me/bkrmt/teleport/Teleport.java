@@ -18,10 +18,12 @@ import org.bukkit.scheduler.BukkitTask;
 
 public class Teleport {
     private int duration;
-    private final int startingDuration;
+    private int startingDuration;
     private final CommandSender sender;
     private final TeleportType type;
     private String warpName;
+    private String title;
+    private String subtitle;
     private final BkPlugin bkPlugin;
     private final PlayerBkTeleportCountStartEvent startEvent;
     private Location location = null;
@@ -56,6 +58,8 @@ public class Teleport {
         type = null;
         duration = 5;
         finishRunnable = null;
+        title = "";
+        subtitle = "";
         warpName = null;
         location = null;
 
@@ -90,6 +94,7 @@ public class Teleport {
 
     public Teleport setDuration(int duration) {
         this.duration = duration;
+        this.startingDuration = duration;
         return this;
     }
 
@@ -110,23 +115,28 @@ public class Teleport {
             if (TeleportCore.INSTANCE.getPlayerTeleport().get(sender.getName()) != null) {
                 TeleportCore.INSTANCE.getPlayerTeleport().get(sender.getName()).cancel();
             }
+
+            boolean useSound = bkPlugin.getConfigManager().getConfig().getBoolean("teleport-countdown.use-sound");
+            boolean useTitle = bkPlugin.getConfigManager().getConfig().getBoolean("teleport-countdown.use-title");
+            boolean useAction = bkPlugin.getConfigManager().getConfig().getBoolean("teleport-countdown.use-actionbar");
+
             if (duration == 0) {
-                teleport();
+                teleport(useSound);
                 return;
             }
             bkPlugin.getServer().getPluginManager().callEvent(startEvent);
 
-            if (hasMoveListener && !isCanceled()) startMoveListener(bkPlugin);
+            if (hasMoveListener && !isCanceled(useSound)) startMoveListener(bkPlugin);
 
             BukkitTask teleport = new BukkitRunnable() {
                 @Override
                 public void run() {
-                    if (isCanceled()) cancel();
+                    if (isCanceled(useSound)) cancel();
 
-                    else sendCountdown();
+                    else sendCountdown(useTitle, useAction, useSound);
 
                     if (duration <= 0) {
-                        teleport();
+                        teleport(useSound);
                         cancel();
                     }
                 }
@@ -137,37 +147,55 @@ public class Teleport {
         }
     }
 
-    private void pling(int volume, float pitch) {
-        ((Player) sender).playSound(((Player) sender).getLocation(), bkPlugin.getHandler().getSoundManager().getPling(), volume, pitch);
+    private void pling(boolean useSound, int volume, float pitch) {
+        if (useSound) {
+            ((Player) sender).playSound(((Player) sender).getLocation(), bkPlugin.getHandler().getSoundManager().getPling(), volume, pitch);
+        }
     }
 
-    private void sendCountdown() {
-        bkPlugin.sendTitle((Player) sender,
-                5, 10, 5,
-                bkPlugin.getLangFile().get("info.time-remaining").replace("{seconds}", String.valueOf(duration)), "");
+    private void sendCountdown(boolean useTitle, boolean useActionBar, boolean useSound) {
+        if (useTitle) {
+            bkPlugin.sendTitle((Player) sender,
+                    5, 10, 5,
+                    bkPlugin.getLangFile().get("info.time-remaining").replace("{seconds}", String.valueOf(duration)), "");
+        }
+        if (useActionBar) {
+            bkPlugin.sendActionBar((Player) sender, buildBar());
+        }
         duration--;
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                pling(15, 1);
-            }
-        }.runTaskLater(bkPlugin, 5);
-    }
-
-    private void teleport() {
-        if (startingDuration != 0) {
+        if (useSound) {
             new BukkitRunnable() {
                 @Override
                 public void run() {
-                    checkTeleport();
+                    pling(true, 15, 1);
                 }
-            }.runTaskLater(bkPlugin, 25);
+            }.runTaskLater(bkPlugin, 5);
         }
-        else checkTeleport();
     }
 
-    private void checkTeleport() {
-        if (isCanceled()) return;
+    private void teleport(boolean useSound) {
+        if (startingDuration > 0) {
+            new BukkitRunnable() {
+                @Override
+                public void run() {
+                    checkTeleport(useSound);
+                }
+            }.runTaskLater(bkPlugin, 25);
+        } else checkTeleport(useSound);
+    }
+
+    public Teleport setTitle(String title) {
+        this.title = title;
+        return this;
+    }
+
+    public Teleport setSubtitle(String subtitle) {
+        this.subtitle = subtitle;
+        return this;
+    }
+
+    private void checkTeleport(boolean useSound) {
+        if (isCanceled(useSound)) return;
 
         TeleportCore.INSTANCE.getPlayerTeleport().remove(sender.getName());
         TeleportCore.INSTANCE.getPlayersInCooldown().remove(sender.getName());
@@ -177,21 +205,22 @@ public class Teleport {
             bkPlugin.getServer().getPluginManager().callEvent(tpEvent);
             if (!tpEvent.isCancelled()) {
                 movePlayer();
-                pling(15, 2);
+                pling(useSound, 15, 2);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private boolean isCanceled() {
+    private boolean isCanceled(boolean useSound) {
         if (!isCancelable) return false;
         if (startEvent.isCancelled()) {
             TeleportCore.INSTANCE.getPlayerTeleport().remove(sender.getName());
             TeleportCore.INSTANCE.getPlayersInCooldown().remove(sender.getName());
-            if (finishRunnable != null) Bukkit.getScheduler().scheduleSyncDelayedTask(bkPlugin, () -> finishRunnable.run((Player) sender, location, true), 3);
+            if (finishRunnable != null)
+                Bukkit.getScheduler().scheduleSyncDelayedTask(bkPlugin, () -> finishRunnable.run((Player) sender, location, true), 3);
             return true;
-        }else if (!TeleportCore.INSTANCE.getPlayersInCooldown().get(sender.getName())) {
+        } else if (!TeleportCore.INSTANCE.getPlayersInCooldown().get(sender.getName())) {
             String subtitle = "";
             if (TeleportCore.INSTANCE.getCancelCause().get(sender.getName()).equals(CancelCause.DealtDamage))
                 subtitle = bkPlugin.getLangFile().get("error.warp-canceled-cause.took-damage");
@@ -201,18 +230,20 @@ public class Teleport {
                 subtitle = bkPlugin.getLangFile().get("error.warp-canceled-cause.moved");
             }
             bkPlugin.sendTitle((Player) sender, 5, 30, 5, bkPlugin.getLangFile().get("error.warp-canceled-title"), subtitle);
-            pling(15, 0.5f);
+            pling(useSound, 15, 0.5f);
             TeleportCore.INSTANCE.getPlayerTeleport().remove(sender.getName());
             TeleportCore.INSTANCE.getPlayersInCooldown().remove(sender.getName());
             TeleportCore.INSTANCE.getCancelCause().remove(sender.getName());
-            if (finishRunnable != null) Bukkit.getScheduler().scheduleSyncDelayedTask(bkPlugin, () -> finishRunnable.run((Player) sender, location, true), 3);
+            if (finishRunnable != null)
+                Bukkit.getScheduler().scheduleSyncDelayedTask(bkPlugin, () -> finishRunnable.run((Player) sender, location, true), 3);
             return true;
         } else return false;
     }
 
     private void movePlayer() {
+        bkPlugin.sendActionBar((Player) sender, " ");
         int invTime = bkPlugin.getConfigManager().getConfig().getInt("invulnerable-time");
-        if (!((Player)sender).getGameMode().equals(GameMode.CREATIVE) && invTime > 0) {
+        if (!((Player) sender).getGameMode().equals(GameMode.CREATIVE) && invTime > 0) {
             if (TeleportCore.INSTANCE.getInvulnerablePlayers().get(sender.getName()) != null) {
                 ((BukkitTask) TeleportCore.INSTANCE.getInvulnerablePlayers().get(sender.getName())[2]).cancel();
                 TeleportCore.INSTANCE.getInvulnerablePlayers().remove(sender.getName());
@@ -243,8 +274,7 @@ public class Teleport {
                             if (sendActionBar) {
                                 bkPlugin.sendActionBar(player, actionMessage.replace("{seconds}", String.valueOf((int) (length - count))));
                                 sendActionBar = false;
-                            }
-                            else sendActionBar = true;
+                            } else sendActionBar = true;
                             TeleportCore.INSTANCE.getInvulnerablePlayers().get(sender.getName())[1] = count + 0.5f;
                         } else {
                             bkPlugin.sendActionBar(player, "");
@@ -254,30 +284,29 @@ public class Teleport {
                     }
                 }
             }.runTaskTimer(bkPlugin, 10, 10);
-            values[3] = new String[] {bkPlugin.getLangFile().get("error.cant-attack-now.self"), bkPlugin.getLangFile().get("error.cant-attack-now.others")};
+            values[3] = new String[]{bkPlugin.getLangFile().get("error.cant-attack-now.self"), bkPlugin.getLangFile().get("error.cant-attack-now.others")};
 
             TeleportCore.INSTANCE.getInvulnerablePlayers().put(sender.getName(), values);
         }
 
         ((Player) sender).teleport(getWarpingLocation());
-        String title;
-        String subtitle = "";
 
         if (type == null) {
-            title = bkPlugin.getLangFile().get("info.warped.title");
-            subtitle = bkPlugin.getLangFile().get("info.warped.subtitle").replace("{location-name}", warpName);
+            if (title.isEmpty())
+                title = bkPlugin.getLangFile().get("info.warped.title");
+            if (subtitle.isEmpty())
+                subtitle = bkPlugin.getLangFile().get("info.warped.subtitle").replace("{location-name}", warpName);
         } else {
-            if (type.equals(TeleportType.Tpa) || type.equals(TeleportType.Loja)) {
+            if (type.equals(TeleportType.Tpa) || type.equals(TeleportType.Shop)) {
                 if (Utils.getPlayer(warpName) == null) {
                     OfflinePlayer offlineTarget = Bukkit.getServer().getOfflinePlayer(warpName);
                     if (offlineTarget != null) warpName = offlineTarget.getName();
                 } else warpName = Utils.getPlayer(warpName).getName();
             }
-            if (type.equals(TeleportType.Loja)) {
+            if (type.equals(TeleportType.Shop)) {
                 Configuration configFile = bkPlugin.getConfigManager().getConfig("shops", warpName.toLowerCase() + ".yml");
                 String customColor = "7";
                 title = bkPlugin.getLangFile().get("info.warped.title").replace("{player}", warpName);
-                title.replaceAll("&", "");
                 if (configFile.getString("shop.color") != null) customColor = configFile.getString("shop.color");
                 if (configFile.getString("shop.message") != null)
                     subtitle = "&" + customColor + configFile.getString("shop.message");
@@ -287,8 +316,45 @@ public class Teleport {
                 subtitle = bkPlugin.getLangFile().get("info.warped.subtitle").replace("{player}", warpName);
             }
         }
-        if (finishRunnable != null) Bukkit.getScheduler().scheduleSyncDelayedTask(bkPlugin, () -> finishRunnable.run((Player) sender, location, false), 3);
-        bkPlugin.sendTitle((Player) sender, 5, 45, 10, ChatColor.translateAlternateColorCodes('&', title), ChatColor.translateAlternateColorCodes('&', subtitle));
+        if (finishRunnable != null)
+            Bukkit.getScheduler().scheduleSyncDelayedTask(bkPlugin, () -> finishRunnable.run((Player) sender, location, false), 3);
+        if (type != null)
+            bkPlugin.sendTitle((Player) sender, 5, 45, 10, ChatColor.translateAlternateColorCodes('&', title), ChatColor.translateAlternateColorCodes('&', subtitle));
+        else {
+            if (!title.isEmpty()) {
+                bkPlugin.sendTitle((Player) sender, 5, 45, 10, Utils.translateColor(title), Utils.translateColor(subtitle));
+            }
+        }
+    }
+
+    private String buildBar() {
+        int barAmount = duration;
+        StringBuilder barBuilder = new StringBuilder();
+        barBuilder.append("§7[");
+        int count = 0;
+        for (int i = 0; i < startingDuration; i++) {
+            if (count > 0) barBuilder.append(" ");
+            if (barAmount > 0) {
+                barBuilder.append(getBarColor(count)).append("⬛");
+                barAmount--;
+            } else {
+                barBuilder.append("§7⬛");
+            }
+            count++;
+        }
+        barBuilder.append("§7]");
+        return barBuilder.toString();
+    }
+
+    private String getBarColor(int count) {
+        int percentage = (int) (((double) count / (double) startingDuration) * 100d);
+        if (percentage < 33) {
+            return "§c";
+        } else if (percentage < 66) {
+            return "§e";
+        } else {
+            return "§a";
+        }
     }
 
     private Location getWarpingLocation() {
@@ -297,7 +363,7 @@ public class Teleport {
             String filePath = bkPlugin.getDataFolder().getPath();
             String configKey = "";
             String tempWarpName = warpName + ".";
-            if (type.equals(TeleportType.Home) || type.equals(TeleportType.Loja)) {
+            if (type.equals(TeleportType.Home) || type.equals(TeleportType.Shop)) {
                 if (type.equals(TeleportType.Home)) {
                     filePath = "userdata";
                     configKey = "homes.";
@@ -340,7 +406,7 @@ public class Teleport {
     private int getDuration() {
         Player player = ((Player) sender);
         String permission = "";
-        if (type.equals(TeleportType.Loja)) permission = "bkshop";
+        if (type.equals(TeleportType.Shop)) permission = "bkshop";
         else permission = permission + "bkteleport";
         int returnDuration = 5;
         for (int count = 0; count <= 99; count++) {
