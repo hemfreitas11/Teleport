@@ -68,10 +68,10 @@ public class Teleport {
     }
 
     private void startMoveListener(BkPlugin bkPlugin) {
-        moveListener = bkPlugin.getConfigManager().getConfig().getBoolean("cancel-on-move") ? new Listener() {
+        moveListener = bkPlugin.getConfigManager().getConfig().getBoolean("teleport-countdown.cancel-on-move") ? new Listener() {
             @EventHandler
             public void onMove(PlayerMoveEvent event) {
-                if (bkPlugin.getConfigManager().getConfig().getBoolean("cancel-on-move")) {
+                if (bkPlugin.getConfigManager().getConfig().getBoolean("teleport-countdown.cancel-on-move")) {
                     if ((int) event.getFrom().getX() != (int) event.getTo().getX() || (int) event.getFrom().getZ() != (int) event.getTo().getZ()) {
                         Player player = event.getPlayer();
                         if (TeleportCore.INSTANCE.getPlayersInCooldown().get(player.getName()) != null) {
