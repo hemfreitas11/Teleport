@@ -44,6 +44,7 @@ public class Teleport {
             this.warpName = warpName;
         }
         this.duration = getDuration();
+        hasMoveListener = true;
         startEvent = new PlayerBkTeleportCountStartEvent((Player) sender, duration);
         startingDuration = duration;
         finishRunnable = null;
@@ -71,14 +72,12 @@ public class Teleport {
         moveListener = bkPlugin.getConfigManager().getConfig().getBoolean("teleport-countdown.cancel-on-move") ? new Listener() {
             @EventHandler
             public void onMove(PlayerMoveEvent event) {
-                if (bkPlugin.getConfigManager().getConfig().getBoolean("teleport-countdown.cancel-on-move")) {
-                    if ((int) event.getFrom().getX() != (int) event.getTo().getX() || (int) event.getFrom().getZ() != (int) event.getTo().getZ()) {
-                        Player player = event.getPlayer();
-                        if (TeleportCore.INSTANCE.getPlayersInCooldown().get(player.getName()) != null) {
-                            TeleportCore.INSTANCE.getPlayersInCooldown().put(player.getName(), false);
-                            TeleportCore.INSTANCE.getCancelCause().put(player.getName(), CancelCause.Moved);
-                            HandlerList.unregisterAll(moveListener);
-                        }
+                if ((int) event.getFrom().getX() != (int) event.getTo().getX() || (int) event.getFrom().getZ() != (int) event.getTo().getZ()) {
+                    Player player = event.getPlayer();
+                    if (TeleportCore.INSTANCE.getPlayersInCooldown().get(player.getName()) != null) {
+                        TeleportCore.INSTANCE.getPlayersInCooldown().put(player.getName(), false);
+                        TeleportCore.INSTANCE.getCancelCause().put(player.getName(), CancelCause.Moved);
+                        HandlerList.unregisterAll(moveListener);
                     }
                 }
             }
@@ -126,7 +125,7 @@ public class Teleport {
             }
             bkPlugin.getServer().getPluginManager().callEvent(startEvent);
 
-            if (hasMoveListener && !isCanceled(useSound)) startMoveListener(bkPlugin);
+            if (!isCanceled(useSound) && hasMoveListener) startMoveListener(bkPlugin);
 
             BukkitTask teleport = new BukkitRunnable() {
                 @Override

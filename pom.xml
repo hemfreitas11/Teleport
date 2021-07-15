@@ -22,7 +22,7 @@
     </build>
     <packaging>jar</packaging>
 
-    <name>Teleport</name>
+    <name>teleport</name>
 
     <properties>
         <java.version>1.8</java.version>
