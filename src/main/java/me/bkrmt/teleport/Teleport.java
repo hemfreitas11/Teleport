@@ -318,7 +318,7 @@ public class Teleport {
         if (finishRunnable != null)
             Bukkit.getScheduler().scheduleSyncDelayedTask(bkPlugin, () -> finishRunnable.run((Player) sender, location, false), 3);
         if (type != null)
-            bkPlugin.sendTitle((Player) sender, 5, 45, 10, ChatColor.translateAlternateColorCodes('&', title), ChatColor.translateAlternateColorCodes('&', subtitle));
+            bkPlugin.sendTitle((Player) sender, 5, 45, 10, Utils.translateColor(title), Utils.translateColor(subtitle));
         else {
             if (!title.isEmpty()) {
                 bkPlugin.sendTitle((Player) sender, 5, 45, 10, Utils.translateColor(title), Utils.translateColor(subtitle));
