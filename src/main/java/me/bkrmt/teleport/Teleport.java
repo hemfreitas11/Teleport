@@ -7,14 +7,19 @@ import me.bkrmt.teleport.events.PlayerBkTeleportCountStartEvent;
 import me.bkrmt.teleport.events.PlayerBkTeleportEvent;
 import org.bukkit.*;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.io.File;
+import java.io.IOException;
 
 public class Teleport {
     private int duration;
@@ -132,7 +137,9 @@ public class Teleport {
                 public void run() {
                     if (isCanceled(useSound)) cancel();
 
-                    else sendCountdown(useTitle, useAction, useSound);
+                    else {
+                        if (duration > 0) sendCountdown(useTitle, useAction, useSound);
+                    }
 
                     if (duration <= 0) {
                         teleport(useSound);
@@ -288,13 +295,25 @@ public class Teleport {
             TeleportCore.INSTANCE.getInvulnerablePlayers().put(sender.getName(), values);
         }
 
+        try {
+            saveLastLocation((Player) sender);
+        } catch (IOException e) {
+            new IOException("Could not save last location of player " + sender.getName(), e).printStackTrace();
+        }
+
         ((Player) sender).teleport(getWarpingLocation());
 
         if (type == null) {
             if (title.isEmpty())
                 title = bkPlugin.getLangFile().get("info.warped.title");
             if (subtitle.isEmpty())
-                subtitle = bkPlugin.getLangFile().get("info.warped.subtitle").replace("{location-name}", warpName);
+                subtitle = bkPlugin.getLangFile().get("info.warped.subtitle")
+                    .replace("{location-name}", warpName)
+                    .replace("{player}", warpName)
+                    .replace("{target}", warpName)
+                    .replace("{sender}", warpName)
+                    .replace("{warpname}", warpName)
+                    .replace("{warp-name}", warpName);
         } else {
             if (type.equals(TeleportType.Tpa) || type.equals(TeleportType.Shop)) {
                 if (Utils.getPlayer(warpName) == null) {
@@ -324,6 +343,46 @@ public class Teleport {
                 bkPlugin.sendTitle((Player) sender, 5, 45, 10, Utils.translateColor(title), Utils.translateColor(subtitle));
             }
         }
+    }
+
+    private void saveLastLocation(Player player) throws IOException {
+        Plugin bkTeleport = Bukkit.getPluginManager().getPlugin("BkTeleport");
+        if (bkTeleport != null && bkTeleport.isEnabled()) {
+            findProvider(bkTeleport, player);
+        } else {
+            Plugin ess = Bukkit.getPluginManager().getPlugin("Essentials");
+            if (ess != null && ess.isEnabled()) {
+                findProvider(ess, player);
+            }
+        }
+    }
+
+    private void findProvider(Plugin lastLocationProvider, Player player) throws IOException {
+        String filePath = lastLocationProvider.getDataFolder() + File.separator + "userdata" + File.separator + player.getUniqueId().toString() + ".yml";
+        File userDataFile = new File(filePath);
+        if (userDataFile.exists()) {
+            writeLastLocation(userDataFile, player);
+        } else {
+            if (userDataFile.createNewFile()) {
+                writeLastLocation(userDataFile, player);
+            } else {
+                throw new IOException("Return value of createNewFile() is false");
+            }
+        }
+    }
+
+    public void writeLastLocation(File userDataFile, Player player) throws IOException {
+        FileConfiguration userDataConfig = YamlConfiguration.loadConfiguration(userDataFile);
+        Location lastLocation = player.getLocation();
+        userDataConfig.set("lastAccountName", player.getName());
+        userDataConfig.set("timestampts.lastteleport", System.currentTimeMillis());
+        userDataConfig.set("lastlocation.world", lastLocation.getWorld().getName());
+        userDataConfig.set("lastlocation.x", lastLocation.getX());
+        userDataConfig.set("lastlocation.y", lastLocation.getY());
+        userDataConfig.set("lastlocation.z", lastLocation.getZ());
+        userDataConfig.set("lastlocation.yaw", lastLocation.getYaw());
+        userDataConfig.set("lastlocation.pitch", lastLocation.getPitch());
+        userDataConfig.save(userDataFile);
     }
 
     private String buildBar() {
