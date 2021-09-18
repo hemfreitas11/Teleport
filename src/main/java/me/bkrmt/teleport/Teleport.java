@@ -3,6 +3,8 @@ package me.bkrmt.teleport;
 import me.bkrmt.bkcore.BkPlugin;
 import me.bkrmt.bkcore.Utils;
 import me.bkrmt.bkcore.config.Configuration;
+import me.bkrmt.bkcore.message.InternalMessages;
+import me.bkrmt.bkcore.xlibs.XSound;
 import me.bkrmt.teleport.events.PlayerBkTeleportCountStartEvent;
 import me.bkrmt.teleport.events.PlayerBkTeleportEvent;
 import org.bukkit.*;
@@ -32,7 +34,7 @@ public class Teleport {
     private final BkPlugin bkPlugin;
     private final PlayerBkTeleportCountStartEvent startEvent;
     private Location location = null;
-    private boolean hasMoveListener;
+    private final boolean hasMoveListener;
     private boolean isCancelable = true;
     private TeleportRunnable finishRunnable;
     private Listener moveListener;
@@ -155,7 +157,7 @@ public class Teleport {
 
     private void pling(boolean useSound, int volume, float pitch) {
         if (useSound) {
-            ((Player) sender).playSound(((Player) sender).getLocation(), bkPlugin.getHandler().getSoundManager().getPling(), volume, pitch);
+            XSound.BLOCK_NOTE_BLOCK_PLING.play((Player) sender, volume, pitch);
         }
     }
 
@@ -224,7 +226,7 @@ public class Teleport {
             TeleportCore.INSTANCE.getPlayerTeleport().remove(sender.getName());
             TeleportCore.INSTANCE.getPlayersInCooldown().remove(sender.getName());
             if (finishRunnable != null)
-                Bukkit.getScheduler().scheduleSyncDelayedTask(bkPlugin, () -> finishRunnable.run((Player) sender, location, true), 3);
+                Bukkit.getScheduler().scheduleSyncDelayedTask(bkPlugin, () -> finishRunnable.run((Player) sender, validateLocation(), true), 3);
             return true;
         } else if (!TeleportCore.INSTANCE.getPlayersInCooldown().get(sender.getName())) {
             String subtitle = "";
@@ -241,7 +243,7 @@ public class Teleport {
             TeleportCore.INSTANCE.getPlayersInCooldown().remove(sender.getName());
             TeleportCore.INSTANCE.getCancelCause().remove(sender.getName());
             if (finishRunnable != null)
-                Bukkit.getScheduler().scheduleSyncDelayedTask(bkPlugin, () -> finishRunnable.run((Player) sender, location, true), 3);
+                Bukkit.getScheduler().scheduleSyncDelayedTask(bkPlugin, () -> finishRunnable.run((Player) sender, validateLocation(), true), 3);
             return true;
         } else return false;
     }
@@ -301,41 +303,44 @@ public class Teleport {
             new IOException("Could not save last location of player " + sender.getName(), e).printStackTrace();
         }
 
-        ((Player) sender).teleport(getWarpingLocation());
+        Location warpingLocation = getWarpingLocation();
+        if (warpingLocation != null) {
+            ((Player) sender).teleport(warpingLocation);
 
-        if (type == null) {
-            if (title.isEmpty())
-                title = bkPlugin.getLangFile().get("info.warped.title");
-            if (subtitle.isEmpty())
-                subtitle = bkPlugin.getLangFile().get("info.warped.subtitle")
-                    .replace("{location-name}", warpName)
-                    .replace("{player}", warpName)
-                    .replace("{target}", warpName)
-                    .replace("{sender}", warpName)
-                    .replace("{warpname}", warpName)
-                    .replace("{warp-name}", warpName);
-        } else {
-            if (type.equals(TeleportType.Tpa) || type.equals(TeleportType.Shop)) {
-                if (Utils.getPlayer(warpName) == null) {
-                    OfflinePlayer offlineTarget = Bukkit.getServer().getOfflinePlayer(warpName);
-                    if (offlineTarget != null) warpName = offlineTarget.getName();
-                } else warpName = Utils.getPlayer(warpName).getName();
-            }
-            if (type.equals(TeleportType.Shop)) {
-                Configuration configFile = bkPlugin.getConfigManager().getConfig("shops", warpName.toLowerCase() + ".yml");
-                String customColor = "7";
-                title = bkPlugin.getLangFile().get("info.warped.title").replace("{player}", warpName);
-                if (configFile.getString("shop.color") != null) customColor = configFile.getString("shop.color");
-                if (configFile.getString("shop.message") != null)
-                    subtitle = "&" + customColor + configFile.getString("shop.message");
-                title = "&" + customColor + title;
+            if (type == null) {
+                if (title.isEmpty())
+                    title = bkPlugin.getLangFile().get("info.warped.title");
+                if (subtitle.isEmpty())
+                    subtitle = bkPlugin.getLangFile().get("info.warped.subtitle")
+                            .replace("{location-name}", warpName)
+                            .replace("{player}", warpName)
+                            .replace("{target}", warpName)
+                            .replace("{sender}", warpName)
+                            .replace("{warpname}", warpName)
+                            .replace("{warp-name}", warpName);
             } else {
-                title = bkPlugin.getLangFile().get("info.warped.title");
-                subtitle = bkPlugin.getLangFile().get("info.warped.subtitle").replace("{player}", warpName);
+                if (type.equals(TeleportType.Tpa) || type.equals(TeleportType.Shop)) {
+                    if (Utils.getPlayer(warpName) == null) {
+                        OfflinePlayer offlineTarget = Bukkit.getServer().getOfflinePlayer(warpName);
+                        if (offlineTarget != null) warpName = offlineTarget.getName();
+                    } else warpName = Utils.getPlayer(warpName).getName();
+                }
+                if (type.equals(TeleportType.Shop)) {
+                    Configuration configFile = bkPlugin.getConfigManager().getConfig("shops", warpName.toLowerCase() + ".yml");
+                    String customColor = "7";
+                    title = bkPlugin.getLangFile().get("info.warped.title").replace("{player}", warpName);
+                    if (configFile.getString("shop.color") != null) customColor = configFile.getString("shop.color");
+                    if (configFile.getString("shop.message") != null)
+                        subtitle = "&" + customColor + configFile.getString("shop.message");
+                    title = "&" + customColor + title;
+                } else {
+                    title = bkPlugin.getLangFile().get("info.warped.title");
+                    subtitle = bkPlugin.getLangFile().get("info.warped.subtitle").replace("{player}", warpName);
+                }
             }
         }
         if (finishRunnable != null)
-            Bukkit.getScheduler().scheduleSyncDelayedTask(bkPlugin, () -> finishRunnable.run((Player) sender, location, false), 3);
+            Bukkit.getScheduler().scheduleSyncDelayedTask(bkPlugin, () -> finishRunnable.run((Player) sender, validateLocation(), false), 3);
         if (type != null)
             bkPlugin.sendTitle((Player) sender, 5, 45, 10, Utils.translateColor(title), Utils.translateColor(subtitle));
         else {
@@ -457,8 +462,48 @@ public class Teleport {
 
             return warpingLocation;
         } else {
-            return location;
+            World world = location.getWorld();
+            if (world == null) {
+                world = Bukkit.getWorld("world");
+                bkPlugin.sendConsoleMessage(InternalMessages.INVALID_LOCATION.getMessage(bkPlugin)
+                        .replace("{0}", "§c[§4" + bkPlugin.getName() + "§c]")
+                        .replace("{1}", "unknown")
+                        .replace("{2}", "unknown")
+                );
+                if (world == null) {
+                    world = Bukkit.getWorlds().get(0);
+                    bkPlugin.sendConsoleMessage(InternalMessages.INVALID_WORLD.getMessage(bkPlugin)
+                            .replace("{0}", "§c[§4" + bkPlugin.getName() + "§c]")
+                            .replace("{1}", "unknown")
+                            .replace("{2}", "unknown")
+                    );
+                }
+                location = new Location(world, location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());
+            }
+            return validateLocation();
         }
+    }
+
+    private Location validateLocation() {
+        World world = location.getWorld();
+        if (world == null) {
+            world = Bukkit.getWorld("world");
+            bkPlugin.sendConsoleMessage(InternalMessages.INVALID_TELEPORT.getMessage(bkPlugin)
+                    .replace("{0}", "§c[§4" + bkPlugin.getName() + "§c]")
+                    .replace("{1}", sender.getName())
+                    .replace("{2}", warpName)
+            );
+            if (world == null) {
+                world = Bukkit.getWorlds().get(0);
+                bkPlugin.sendConsoleMessage(InternalMessages.INVALID_TELEPORT.getMessage(bkPlugin)
+                        .replace("{0}", "§c[§4" + bkPlugin.getName() + "§c]")
+                        .replace("{1}", sender.getName())
+                        .replace("{2}", warpName)
+                );
+            }
+            location = new Location(world, location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());
+        }
+        return location;
     }
 
     private int getDuration() {
